@@ -3,13 +3,10 @@ package glispext
 import (
 	"errors"
 	"fmt"
-	"reflect"
 	"regexp"
 
 	glisp "github.com/zhemao/glisp/interpreter"
 )
-
-var matchString = reflect.ValueOf(regexp.MatchString)
 
 func RegexpFindStringIndex(env *glisp.Glisp, name string,
 	args []glisp.Sexp) (glisp.Sexp, error) {
@@ -22,7 +19,7 @@ func RegexpFindStringIndex(env *glisp.Glisp, name string,
 		haystack = string(t)
 	default:
 		return glisp.SexpNull,
-			errors.New("2nd argument of regexp.MatchString should be a string to check against the regexp of the first argument.")
+			errors.New("2nd argument of regexp.FindStringIndex should be a string to check against the regexp of the first argument.")
 	}
 
 	var needle regexp.Regexp
@@ -31,7 +28,7 @@ func RegexpFindStringIndex(env *glisp.Glisp, name string,
 		needle = regexp.Regexp(t)
 	default:
 		return glisp.SexpNull,
-			errors.New("1st argument of regexp.MatchString should be a compiled regular expression")
+			errors.New("1st argument of regexp.FindStringIndex should be a compiled regular expression")
 	}
 
 	loc := needle.FindStringIndex(haystack)
