@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"regexp"
 
-	glisp "github.com/glycerine/glisp/interpreter"
+	glisp "github.com/zhemao/glisp/interpreter"
 )
 
 var matchString = reflect.ValueOf(regexp.MatchString)

@@ -2,7 +2,7 @@ package glispext
 
 import (
 	"time"
-	"github.com/glycerine/glisp/interpreter"
+	"github.com/zhemao/glisp/interpreter"
 	"errors"
 	"fmt"
 )

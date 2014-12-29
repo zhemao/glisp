@@ -1,7 +1,7 @@
 package glispext
 
 import (
-	"github.com/glycerine/glisp/interpreter"
+	"github.com/zhemao/glisp/interpreter"
 	"errors"
 	"fmt"
 )

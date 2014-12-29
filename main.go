@@ -8,8 +8,8 @@ import (
 	"runtime/pprof"
 	"strings"
 
-	"github.com/glycerine/glisp/extensions"
-	"github.com/glycerine/glisp/interpreter"
+	"github.com/zhemao/glisp/extensions"
+	"github.com/zhemao/glisp/interpreter"
 )
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
