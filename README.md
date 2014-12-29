@@ -23,4 +23,4 @@ Here is a list of what features are implemented and not implemented so far.
  * [x] Channel and goroutine support
  * [x] Pre- and Post- function call hooks
 
-The full documentation can be found in the [Wiki](https://github.com/zhemao/glisp/wiki).
+The full documentation can be found in the [Wiki](https://github.com/glycerine/glisp/wiki).

@@ -1,7 +1,9 @@
 package glisp
 
 import (
+	"fmt"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -80,6 +82,12 @@ type SexpBool bool
 type SexpFloat float64
 type SexpChar rune
 type SexpStr string
+type SexpRegexp regexp.Regexp
+
+func (re SexpRegexp) SexpString() string {
+	r := regexp.Regexp(re)
+	return fmt.Sprintf(`(regexp.Compile "%v")`, r.String())
+}
 
 var SexpIntSize = reflect.TypeOf(SexpInt(0)).Bits()
 var SexpFloatSize = reflect.TypeOf(SexpFloat(0.0)).Bits()

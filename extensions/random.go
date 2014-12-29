@@ -3,7 +3,7 @@ package glispext
 import (
 	"math/rand"
 	"time"
-	"github.com/zhemao/glisp/interpreter"
+	"github.com/glycerine/glisp/interpreter"
 )
 
 var defaultRand = rand.New(rand.NewSource(time.Now().Unix()))
