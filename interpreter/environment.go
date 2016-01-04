@@ -249,6 +249,81 @@ func (env *Glisp) CallUserFunction(
 	return nil
 }
 
+func (env *Glisp) ParseStream(in io.Reader) ([]Sexp, error) {
+	lexer := NewLexerFromStream(bufio.NewReader(in))
+
+	var err error
+	var exp []Sexp
+
+	exp, err = ParseTokens(env, lexer)
+	if err != nil {
+		return nil, fmt.Errorf("Error on line %d: %v\n", lexer.Linenum(), err)
+	}
+
+	return exp, nil
+}
+
+// ParseFile, used in the generator at read time to dynamiclly add more defs from other files
+func (env *Glisp) ParseFile(file string) ([]Sexp, error) {
+	in, err := os.Open(file)
+	if err != nil {
+		return nil, err
+	}
+
+	var exp []Sexp
+
+	exp, err = env.ParseStream(in)
+
+	in.Close()
+
+	return exp, err
+}
+
+func (env *Glisp) SourceExpressions(expressions []Sexp) error {
+	gen := NewGenerator(env)
+	if !env.ReachedEnd() {
+		gen.AddInstruction(PopInstr(0))
+	}
+	err := gen.GenerateBegin(expressions)
+	if err != nil {
+		return err
+	}
+
+	curfunc := env.curfunc
+	curpc := env.pc
+
+	env.curfunc = MakeFunction("__source", 0, false, gen.instructions)
+	env.pc = 0
+
+	env.datastack.PushExpr(SexpNull)
+
+	if _, err = env.Run(); err != nil {
+		return err
+	}
+
+	env.datastack.PopExpr()
+
+	env.pc = curpc
+	env.curfunc = curfunc
+
+	return nil
+}
+
+// SourceStream, load this in via a __source dynamic function, after it runs it no longer exists
+func (env *Glisp) SourceStream(stream io.Reader) error {
+	expressions, err := env.ParseStream(stream)
+
+	if err != nil {
+		return err
+	}
+
+	return env.SourceExpressions(expressions)
+}
+
+func (env *Glisp) SourceFile(file *os.File) error {
+	return env.SourceStream(bufio.NewReader(file))
+}
+
 func (env *Glisp) LoadExpressions(expressions []Sexp) error {
 	gen := NewGenerator(env)
 	if !env.ReachedEnd() {
@@ -265,13 +340,12 @@ func (env *Glisp) LoadExpressions(expressions []Sexp) error {
 	return nil
 }
 
-func (env *Glisp) LoadStream(stream io.RuneReader) error {
-	lexer := NewLexerFromStream(stream)
+// LoadStream, load this in via running a __main function and setting main on the environment
+func (env *Glisp) LoadStream(stream io.Reader) error {
+	expressions, err := env.ParseStream(stream)
 
-	expressions, err := ParseTokens(env, lexer)
 	if err != nil {
-		return errors.New(fmt.Sprintf(
-			"Error on line %d: %v\n", lexer.Linenum(), err))
+		return err
 	}
 
 	return env.LoadExpressions(expressions)
