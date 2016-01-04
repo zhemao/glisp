@@ -483,6 +483,11 @@ func (env *Glisp) Run() (Sexp, error) {
 		}
 	}
 
+	if env.datastack.IsEmpty() {
+		env.DumpEnvironment()
+		os.Exit(-1)
+	}
+
 	return env.datastack.PopExpr()
 }
 
