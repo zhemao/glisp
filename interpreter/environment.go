@@ -383,6 +383,7 @@ func (env *Glisp) AddMacro(name string, function GlispUserFunction) {
 }
 
 func (env *Glisp) ImportEval() {
+	env.AddFunction("source-file", SourceFileFunction)
 	env.AddFunction("eval", EvalFunction)
 }
 
