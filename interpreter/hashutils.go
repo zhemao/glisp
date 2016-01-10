@@ -25,31 +25,39 @@ func HashExpression(expr Sexp) (int, error) {
 	return 0, errors.New(fmt.Sprintf("cannot hash type %T", expr))
 }
 
-func MakeHash(args []Sexp) (SexpHash, error) {
-	hash := SexpHash(make(map[int][]SexpPair))
-
+func MakeHash(args []Sexp, typename string) (SexpHash, error) {
 	if len(args)%2 != 0 {
-		return SexpHash(nil),
+		return SexpHash{},
 			errors.New("hash requires even number of arguments")
 	}
 
+	var iface interface{}
+	var memberCount int
+	hash := SexpHash{
+		TypeName: &typename,
+		Map:      make(map[int][]SexpPair),
+		KeyOrder: &[]Sexp{},
+		GoStruct: &iface,
+		NumKeys:  &memberCount,
+	}
+	k := 0
 	for i := 0; i < len(args); i += 2 {
 		key := args[i]
 		val := args[i+1]
-		err := HashSet(hash, key, val)
+		err := hash.HashSet(key, val)
 		if err != nil {
 			return hash, err
 		}
+		k++
 	}
-
 	return hash, nil
 }
 
-func HashGet(hash SexpHash, key Sexp) (Sexp, error) {
+func (hash *SexpHash) HashGet(key Sexp) (Sexp, error) {
 	// this is kind of a hack
 	// SexpEnd can't be created by user
 	// so there is no way it would actually show up in the map
-	val, err := HashGetDefault(hash, key, SexpEnd)
+	val, err := hash.HashGetDefault(key, SexpEnd)
 
 	if err != nil {
 		return SexpNull, err
@@ -62,12 +70,12 @@ func HashGet(hash SexpHash, key Sexp) (Sexp, error) {
 	return val, nil
 }
 
-func HashGetDefault(hash SexpHash, key Sexp, defaultval Sexp) (Sexp, error) {
+func (hash *SexpHash) HashGetDefault(key Sexp, defaultval Sexp) (Sexp, error) {
 	hashval, err := HashExpression(key)
 	if err != nil {
 		return SexpNull, err
 	}
-	arr, ok := hash[hashval]
+	arr, ok := hash.Map[hashval]
 
 	if !ok {
 		return defaultval, nil
@@ -82,15 +90,17 @@ func HashGetDefault(hash SexpHash, key Sexp, defaultval Sexp) (Sexp, error) {
 	return defaultval, nil
 }
 
-func HashSet(hash SexpHash, key Sexp, val Sexp) error {
+func (hash *SexpHash) HashSet(key Sexp, val Sexp) error {
 	hashval, err := HashExpression(key)
 	if err != nil {
 		return err
 	}
-	arr, ok := hash[hashval]
+	arr, ok := hash.Map[hashval]
 
 	if !ok {
-		hash[hashval] = []SexpPair{Cons(key, val)}
+		hash.Map[hashval] = []SexpPair{Cons(key, val)}
+		*hash.KeyOrder = append(*hash.KeyOrder, key)
+		(*hash.NumKeys)++
 		return nil
 	}
 
@@ -105,28 +115,32 @@ func HashSet(hash SexpHash, key Sexp, val Sexp) error {
 
 	if !found {
 		arr = append(arr, Cons(key, val))
+		*hash.KeyOrder = append(*hash.KeyOrder, key)
+		(*hash.NumKeys)++
 	}
-	hash[hashval] = arr
+
+	hash.Map[hashval] = arr
 
 	return nil
 }
 
-func HashDelete(hash SexpHash, key Sexp) error {
+func (hash *SexpHash) HashDelete(key Sexp) error {
 	hashval, err := HashExpression(key)
 	if err != nil {
 		return err
 	}
-	arr, ok := hash[hashval]
+	arr, ok := hash.Map[hashval]
 
 	// if it doesn't exist, no need to delete it
 	if !ok {
 		return nil
 	}
 
+	(*hash.NumKeys)--
 	for i, pair := range arr {
 		res, err := Compare(pair.head, key)
 		if err == nil && res == 0 {
-			hash[hashval] = append(arr[0:i], arr[i+1:]...)
+			hash.Map[hashval] = append(arr[0:i], arr[i+1:]...)
 			break
 		}
 	}
@@ -136,17 +150,35 @@ func HashDelete(hash SexpHash, key Sexp) error {
 
 func HashCountKeys(hash SexpHash) int {
 	var num int
-	for _, arr := range hash {
+	for _, arr := range hash.Map {
 		num += len(arr)
+	}
+	if num != (*hash.NumKeys) {
+		panic(fmt.Errorf("HashCountKeys disagreement on count: num=%d, (*hash.NumKeys)=%d", num, (*hash.NumKeys)))
 	}
 	return num
 }
 
 func HashIsEmpty(hash SexpHash) bool {
-	for _, arr := range hash {
+	for _, arr := range hash.Map {
 		if len(arr) > 0 {
 			return false
 		}
 	}
 	return true
+}
+
+func SetHashKeyOrder(hash *SexpHash, keyOrd Sexp) error {
+	// truncate down to zero, then build back up correctly.
+	*(*hash).KeyOrder = (*(*hash).KeyOrder)[:0]
+
+	keys, isArr := keyOrd.(SexpArray)
+	if !isArr {
+		return fmt.Errorf("must have SexpArray for keyOrd, but instead we have: %T with value='%#v'", keyOrd, keyOrd)
+	}
+	for _, key := range keys {
+		*hash.KeyOrder = append(*hash.KeyOrder, key)
+	}
+
+	return nil
 }
