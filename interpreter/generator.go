@@ -248,7 +248,9 @@ func (gen *Generator) GenerateMacexpand(args []Sexp) error {
 	if err != nil {
 		return err
 	}
-	expr, err := gen.env.Apply(macro, macargs)
+
+	env := gen.env.Duplicate()
+	expr, err := env.Apply(macro, macargs)
 	if err != nil {
 		return err
 	}
