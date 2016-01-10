@@ -257,17 +257,17 @@ func HashAccessFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
 	switch name {
 	case "hget":
 		if len(args) == 3 {
-			return HashGetDefault(hash, args[1], args[2])
+			return hash.HashGetDefault(args[1], args[2])
 		}
-		return HashGet(hash, args[1])
+		return hash.HashGet(args[1])
 	case "hset!":
-		err := HashSet(hash, args[1], args[2])
+		err := hash.HashSet(args[1], args[2])
 		return SexpNull, err
 	case "hdel!":
 		if len(args) != 2 {
 			return SexpNull, WrongNargs
 		}
-		err := HashDelete(hash, args[1])
+		err := hash.HashDelete(args[1])
 		return SexpNull, err
 	}
 
@@ -544,7 +544,7 @@ func ConstructorFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
 	case "list":
 		return MakeList(args), nil
 	case "hash":
-		return MakeHash(args)
+		return MakeHash(args, "hash")
 	}
 	return SexpNull, errors.New("invalid constructor")
 }
@@ -636,60 +636,69 @@ func MakeUserFunction(name string, ufun GlispUserFunction) SexpFunction {
 }
 
 var BuiltinFunctions = map[string]GlispUserFunction{
-	"<":           CompareFunction,
-	">":           CompareFunction,
-	"<=":          CompareFunction,
-	">=":          CompareFunction,
-	"=":           CompareFunction,
-	"not=":        CompareFunction,
-	"sll":         BinaryIntFunction,
-	"sra":         BinaryIntFunction,
-	"srl":         BinaryIntFunction,
-	"mod":         BinaryIntFunction,
-	"+":           NumericFunction,
-	"-":           NumericFunction,
-	"*":           NumericFunction,
-	"/":           NumericFunction,
-	"bit-and":     BitwiseFunction,
-	"bit-or":      BitwiseFunction,
-	"bit-xor":     BitwiseFunction,
-	"bit-not":     ComplementFunction,
-	"read":        ReadFunction,
-	"cons":        ConsFunction,
-	"first":       FirstFunction,
-	"rest":        RestFunction,
-	"car":         FirstFunction,
-	"cdr":         RestFunction,
-	"list?":       TypeQueryFunction,
-	"null?":       TypeQueryFunction,
-	"array?":      TypeQueryFunction,
-	"hash?":       TypeQueryFunction,
-	"number?":     TypeQueryFunction,
-	"int?":        TypeQueryFunction,
-	"float?":      TypeQueryFunction,
-	"char?":       TypeQueryFunction,
-	"symbol?":     TypeQueryFunction,
-	"string?":     TypeQueryFunction,
-	"zero?":       TypeQueryFunction,
-	"empty?":      TypeQueryFunction,
-	"println":     PrintFunction,
-	"print":       PrintFunction,
-	"not":         NotFunction,
-	"apply":       ApplyFunction,
-	"map":         MapFunction,
-	"make-array":  MakeArrayFunction,
-	"aget":        ArrayAccessFunction,
-	"aset!":       ArrayAccessFunction,
-	"sget":        SgetFunction,
-	"hget":        HashAccessFunction,
-	"hset!":       HashAccessFunction,
-	"hdel!":       HashAccessFunction,
-	"slice":       SliceFunction,
-	"len":         LenFunction,
-	"append":      AppendFunction,
-	"concat":      ConcatFunction,
-	"array":       ConstructorFunction,
-	"list":        ConstructorFunction,
-	"hash":        ConstructorFunction,
-	"symnum":      SymnumFunction,
+	"<":          CompareFunction,
+	">":          CompareFunction,
+	"<=":         CompareFunction,
+	">=":         CompareFunction,
+	"=":          CompareFunction,
+	"not=":       CompareFunction,
+	"sll":        BinaryIntFunction,
+	"sra":        BinaryIntFunction,
+	"srl":        BinaryIntFunction,
+	"mod":        BinaryIntFunction,
+	"+":          NumericFunction,
+	"-":          NumericFunction,
+	"*":          NumericFunction,
+	"/":          NumericFunction,
+	"bit-and":    BitwiseFunction,
+	"bit-or":     BitwiseFunction,
+	"bit-xor":    BitwiseFunction,
+	"bit-not":    ComplementFunction,
+	"read":       ReadFunction,
+	"cons":       ConsFunction,
+	"first":      FirstFunction,
+	"rest":       RestFunction,
+	"car":        FirstFunction,
+	"cdr":        RestFunction,
+	"list?":      TypeQueryFunction,
+	"null?":      TypeQueryFunction,
+	"array?":     TypeQueryFunction,
+	"hash?":      TypeQueryFunction,
+	"number?":    TypeQueryFunction,
+	"int?":       TypeQueryFunction,
+	"float?":     TypeQueryFunction,
+	"char?":      TypeQueryFunction,
+	"symbol?":    TypeQueryFunction,
+	"string?":    TypeQueryFunction,
+	"zero?":      TypeQueryFunction,
+	"empty?":     TypeQueryFunction,
+	"println":    PrintFunction,
+	"print":      PrintFunction,
+	"not":        NotFunction,
+	"apply":      ApplyFunction,
+	"map":        MapFunction,
+	"make-array": MakeArrayFunction,
+	"aget":       ArrayAccessFunction,
+	"aset!":      ArrayAccessFunction,
+	"sget":       SgetFunction,
+	"hget":       HashAccessFunction,
+	"hset!":      HashAccessFunction,
+	"hdel!":      HashAccessFunction,
+	"slice":      SliceFunction,
+	"len":        LenFunction,
+	"append":     AppendFunction,
+	"concat":     ConcatFunction,
+	"array":      ConstructorFunction,
+	"list":       ConstructorFunction,
+	"hash":       ConstructorFunction,
+	"symnum":     SymnumFunction,
+	"str":        StringifyFunction,
+}
+
+func StringifyFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
+	if len(args) != 1 {
+		return SexpNull, WrongNargs
+	}
+
+	return SexpStr(args[0].SexpString()), nil
 }

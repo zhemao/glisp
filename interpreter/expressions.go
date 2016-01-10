@@ -74,7 +74,13 @@ func (pair SexpPair) SexpString() string {
 }
 
 type SexpArray []Sexp
-type SexpHash map[int][]SexpPair
+type SexpHash struct {
+	TypeName *string
+	Map      map[int][]SexpPair
+	KeyOrder *[]Sexp // must user pointers here, else hset! will fail to update.
+	GoStruct *interface{}
+	NumKeys  *int
+}
 type SexpInt int
 type SexpBool bool
 type SexpFloat float64
@@ -99,7 +105,7 @@ func (arr SexpArray) SexpString() string {
 
 func (hash SexpHash) SexpString() string {
 	str := "{"
-	for _, arr := range hash {
+	for _, arr := range hash.Map {
 		for _, pair := range arr {
 			str += pair.head.SexpString() + " "
 			str += pair.tail.SexpString() + " "
@@ -177,4 +183,12 @@ func IsTruthy(expr Sexp) bool {
 		return e != SexpNull
 	}
 	return true
+}
+
+type SexpStackmark struct {
+	sym SexpSymbol
+}
+
+func (mark SexpStackmark) SexpString() string {
+	return "stackmark " + mark.sym.name
 }
