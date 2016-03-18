@@ -489,6 +489,34 @@ func ApplyFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
 	return env.Apply(fun, funargs)
 }
 
+func FoldLFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
+	if len(args) != 3 {
+		return SexpNull, WrongNargs
+	}
+	var fun SexpFunction
+
+	switch e := args[0].(type) {
+	case SexpFunction:
+		fun = e
+	default:
+		return SexpNull, fmt.Errorf("first argument must be function had type `%T` val %v", e, e)
+	}
+
+	acc := args[2]
+
+	switch e := args[1].(type) {
+	case SexpArray:
+		return FoldlArray(env, fun, e, acc)
+	case SexpPair:
+		return FoldlPair(env, fun, e, acc)
+	case SexpHash:
+		return FoldlHash(env, fun, e, acc)
+	}
+
+	return SexpNull, errors.New("second argument must be array, list or hash")
+
+}
+
 func MapFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
 	if len(args) != 2 {
 		return SexpNull, WrongNargs
@@ -682,6 +710,7 @@ var BuiltinFunctions = map[string]GlispUserFunction{
 	"not":        NotFunction,
 	"apply":      ApplyFunction,
 	"map":        MapFunction,
+	"foldl":      FoldLFunction,
 	"make-array": MakeArrayFunction,
 	"aget":       ArrayAccessFunction,
 	"aset!":      ArrayAccessFunction,

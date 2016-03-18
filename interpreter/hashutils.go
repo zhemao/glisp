@@ -25,24 +25,50 @@ func HashExpression(expr Sexp) (int, error) {
 	return 0, errors.New(fmt.Sprintf("cannot hash type %T", expr))
 }
 
+func FoldlHash(env *Glisp, fun SexpFunction, hash SexpHash, acc Sexp) (Sexp, error) {
+	var err error
+	var val Sexp
+
+	for _, key := range *hash.KeyOrder {
+		val, err = hash.HashGetDefault(key, SexpEnd)
+		if err != nil {
+			return acc, err
+		}
+		if val == SexpEnd {
+			return acc, fmt.Errorf("Inconsistant hash object, got SexpEnd while walking the ordered list")
+		}
+
+		acc, err = env.Apply(fun, []Sexp{SexpPair{key, val}, acc})
+		if err != nil {
+			return acc, err
+		}
+	}
+
+	return acc, nil
+}
+
 func MapHash(env *Glisp, fun SexpFunction, hash SexpHash) (SexpArray, error) {
-	result := make([]Sexp, *hash.NumKeys)
+	result := make([]Sexp, len(*hash.KeyOrder))
 
 	var err error
+	var val Sexp
 
 	i := 0
 
-	consPtr := make([]Sexp, 1)
-
-	for _, pairs := range hash.Map {
-		for _, pair := range pairs {
-			consPtr[0] = pair
-			result[i], err = env.Apply(fun, consPtr)
-			if err != nil {
-				return SexpArray(result), err
-			}
-			i++
+	for _, key := range *hash.KeyOrder {
+		val, err = hash.HashGetDefault(key, SexpEnd)
+		if err != nil {
+			return SexpArray(result), err
 		}
+		if val == SexpEnd {
+			return SexpArray(result), fmt.Errorf("Inconsistant hash object, got SexpEnd while walking the ordered list")
+		}
+
+		result[i], err = env.Apply(fun, []Sexp{SexpPair{key, val}})
+		if err != nil {
+			return SexpArray(result), err
+		}
+		i++
 	}
 
 	return SexpArray(result), nil

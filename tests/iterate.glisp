@@ -1,7 +1,5 @@
 ; Test map iterations
 
-(def data {"a" 1 "b" 2})
-
 (defn assertPairs [x]
 	(assert (= true (pair? x))))
 
@@ -34,4 +32,42 @@
 
 
 (map (fn [x] ((mixGen) x)) [ ("a" "b" . "c") {"d" 1 "e" 2} '("f" "g" "h")] )
+
+(defn str-concat-l [s list]
+	(cond
+		(empty? list) s
+		(let
+			[
+			item (cond
+				(= false (string? (car list))) (str (car list))
+				(car list))
+			rest (cdr list)
+			]
+			(str-concat-l (concat s item) rest)
+		)
+	)
+)
+
+(defn str-concat [s & list]
+	(str-concat-l s list)
+)
+
+(defn accumPairs [item acc]
+	(cond
+		(pair? item)
+			(str-concat acc "Key: " (car item) " Value: " (cdr item) " ")
+		acc
+	)
+)
+
+(def data {"a" 1 "b" 2 'z 65 'x "Hello"})
+
+;;; "Accumulate all pairs into a string"
+; (println (foldl accumPairs data ""))
+
+(assert (=
+		"Key: a Value: 1 Key: b Value: 2 Key: z Value: 65 Key: x Value: Hello "
+		(foldl accumPairs data "")
+	)
+)
 

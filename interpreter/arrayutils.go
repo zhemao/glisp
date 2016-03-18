@@ -18,6 +18,19 @@ func MapArray(env *Glisp, fun SexpFunction, arr SexpArray) (SexpArray, error) {
 	return SexpArray(result), nil
 }
 
+func FoldlArray(env *Glisp, fun SexpFunction, arr SexpArray, acc Sexp) (Sexp, error) {
+	var err error
+
+	for i := range arr {
+		acc, err = env.Apply(fun, []Sexp{arr[i : i+1], acc})
+		if err != nil {
+			return acc, err
+		}
+	}
+
+	return acc, nil
+}
+
 func ConcatArray(arr SexpArray, expr Sexp) (SexpArray, error) {
 	var arr2 SexpArray
 	switch t := expr.(type) {
