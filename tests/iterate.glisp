@@ -1,0 +1,37 @@
+; Test map iterations
+
+(def data {"a" 1 "b" 2})
+
+(defn assertPairs [x]
+	(assert (= true (pair? x))))
+
+(map assertPairs {"a" 1 "b" 2 "c" 3})
+
+(defn makeAssertMixed []
+	(let* [
+		x 	[0]
+		fun	(fn []
+				(begin
+					(aset! x 0 (+ (aget x 0) 1))
+					(cond
+						(= (aget x 0) 1)
+							(fn [z] (assert (= true (pair? z))))
+						(= (aget x 0) 2)
+							(fn [z] (assert (= true (hash? z))))
+						(= (aget x 0) 3)
+							(fn [z] (assert (= true (list? z))))
+						(assert false)
+					)
+				)
+			)
+		]
+		fun
+	)
+)
+
+
+(def mixGen (makeAssertMixed))
+
+
+(map (fn [x] ((mixGen) x)) [ ("a" "b" . "c") {"d" 1 "e" 2} '("f" "g" "h")] )
+

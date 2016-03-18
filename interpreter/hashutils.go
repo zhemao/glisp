@@ -25,6 +25,29 @@ func HashExpression(expr Sexp) (int, error) {
 	return 0, errors.New(fmt.Sprintf("cannot hash type %T", expr))
 }
 
+func MapHash(env *Glisp, fun SexpFunction, hash SexpHash) (SexpArray, error) {
+	result := make([]Sexp, *hash.NumKeys)
+
+	var err error
+
+	i := 0
+
+	consPtr := make([]Sexp, 1)
+
+	for _, pairs := range hash.Map {
+		for _, pair := range pairs {
+			consPtr[0] = pair
+			result[i], err = env.Apply(fun, consPtr)
+			if err != nil {
+				return SexpArray(result), err
+			}
+			i++
+		}
+	}
+
+	return SexpArray(result), nil
+}
+
 func MakeHash(args []Sexp, typename string) (SexpHash, error) {
 	if len(args)%2 != 0 {
 		return SexpHash{},
