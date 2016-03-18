@@ -383,6 +383,7 @@ func (env *Glisp) AddMacro(name string, function GlispUserFunction) {
 }
 
 func (env *Glisp) ImportEval() {
+	env.AddFunction("source-file", SourceFileFunction)
 	env.AddFunction("eval", EvalFunction)
 }
 
@@ -481,6 +482,11 @@ func (env *Glisp) Run() (Sexp, error) {
 		if err != nil {
 			return SexpNull, err
 		}
+	}
+
+	if env.datastack.IsEmpty() {
+		env.DumpEnvironment()
+		os.Exit(-1)
 	}
 
 	return env.datastack.PopExpr()

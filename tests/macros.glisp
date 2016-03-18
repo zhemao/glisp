@@ -10,3 +10,10 @@
 
 (assert (null? (when false 'c)))
 (assert (= 'a (when true 'c 'b 'a)))
+
+(assert (=
+         '(cond false (begin (quote c)) (quote ()))
+         (macexpand (when false 'c))))
+(assert (=
+         '(cond true (begin (quote c) (quote b) (quote a)) (quote ()))
+         (macexpand (when true 'c 'b 'a))))

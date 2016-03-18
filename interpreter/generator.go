@@ -13,6 +13,16 @@ type Generator struct {
 	instructions []Instruction
 }
 
+type Loop struct {
+	stmtname       SexpSymbol
+	loopStart      int
+	loopLen        int
+	breakOffset    int // i.e. relative to loopStart
+	continueOffset int // i.e. relative to loopStart
+}
+
+func (loop *Loop) IsStackElem() {}
+
 func NewGenerator(env *Glisp) *Generator {
 	gen := new(Generator)
 	gen.env = env
@@ -248,7 +258,9 @@ func (gen *Generator) GenerateMacexpand(args []Sexp) error {
 	if err != nil {
 		return err
 	}
-	expr, err := gen.env.Apply(macro, macargs)
+
+	env := gen.env.Duplicate()
+	expr, err := env.Apply(macro, macargs)
 	if err != nil {
 		return err
 	}
@@ -329,50 +341,6 @@ func (gen *Generator) GenerateQuote(args []Sexp) error {
 	for _, expr := range args {
 		gen.AddInstruction(PushInstr{expr})
 	}
-	return nil
-}
-
-func (gen *Generator) GenerateSyntaxQuote(args []Sexp) error {
-	if len(args) != 1 {
-		return errors.New("syntax-quote takes 1 argument")
-	}
-
-	if args[0] == SexpNull || !IsList(args[0]) {
-		gen.AddInstruction(PushInstr{args[0]})
-		return nil
-	}
-	quotebody, _ := ListToArray(args[0])
-
-	if len(quotebody) == 2 {
-		var issymbol bool
-		var sym SexpSymbol
-		switch t := quotebody[0].(type) {
-		case SexpSymbol:
-			sym = t
-			issymbol = true
-		default:
-			issymbol = false
-		}
-		if issymbol {
-			if sym.name == "unquote" {
-				gen.Generate(quotebody[1])
-				return nil
-			} else if sym.name == "unquote-splicing" {
-				gen.Generate(quotebody[1])
-				gen.AddInstruction(ExplodeInstr(0))
-				return nil
-			}
-		}
-	}
-
-	gen.AddInstruction(PushInstr{SexpMarker})
-
-	for _, expr := range quotebody {
-		gen.GenerateSyntaxQuote([]Sexp{expr})
-	}
-
-	gen.AddInstruction(SquashInstr(0))
-
 	return nil
 }
 
@@ -642,4 +610,142 @@ func (gen *Generator) Reset() {
 	gen.instructions = make([]Instruction, 0)
 	gen.tail = false
 	gen.scopes = 0
+}
+
+// side-effect (or main effect) has to be pushing an expression on the top of
+// the datastack that represents the expanded and substituted expression
+func (gen *Generator) GenerateSyntaxQuote(args []Sexp) error {
+
+	if len(args) != 1 {
+		return errors.New("syntax-quote takes exactly one argument")
+	}
+	arg := args[0]
+
+	// need to handle arrays, since they can have unquotes
+	// in them too.
+	switch arg.(type) {
+	case SexpArray:
+		gen.generateSyntaxQuoteArray(arg)
+		return nil
+	case SexpPair:
+		if !IsList(arg) {
+			break
+		}
+		gen.generateSyntaxQuoteList(arg)
+		return nil
+	case SexpHash:
+		gen.generateSyntaxQuoteHash(arg)
+		return nil
+	}
+	gen.AddInstruction(PushInstr{arg})
+	return nil
+}
+
+func (gen *Generator) generateSyntaxQuoteList(arg Sexp) error {
+
+	switch a := arg.(type) {
+	case SexpPair:
+		//good, required here
+	default:
+		return fmt.Errorf("arg to generateSyntaxQuoteList() must be list; got %T", a)
+	}
+
+	// things that need unquoting end up as
+	// (unquote mysym)
+	// i.e. a pair
+	// list of length 2 exactly, with first atom
+	// being "unquote" and second being the symbol
+	// to substitute.
+	quotebody, _ := ListToArray(arg)
+
+	if len(quotebody) == 2 {
+		var issymbol bool
+		var sym SexpSymbol
+		switch t := quotebody[0].(type) {
+		case SexpSymbol:
+			sym = t
+			issymbol = true
+		default:
+			issymbol = false
+		}
+		if issymbol {
+			if sym.name == "unquote" {
+				gen.Generate(quotebody[1])
+				return nil
+			} else if sym.name == "unquote-splicing" {
+				gen.Generate(quotebody[1])
+				gen.AddInstruction(ExplodeInstr(0))
+				return nil
+			}
+		}
+	}
+
+	gen.AddInstruction(PushInstr{SexpMarker})
+
+	for _, expr := range quotebody {
+		gen.GenerateSyntaxQuote([]Sexp{expr})
+	}
+
+	gen.AddInstruction(SquashInstr(0))
+
+	return nil
+}
+
+func (gen *Generator) generateSyntaxQuoteArray(arg Sexp) error {
+
+	var arr SexpArray
+	switch a := arg.(type) {
+	case SexpArray:
+		//good, required here
+		arr = a
+	default:
+		return fmt.Errorf("arg to generateSyntaxQuoteArray() must be an array; got %T", a)
+	}
+
+	gen.AddInstruction(PushInstr{SexpMarker})
+	for _, expr := range arr {
+		gen.AddInstruction(PushInstr{SexpMarker})
+		gen.GenerateSyntaxQuote([]Sexp{expr})
+		gen.AddInstruction(SquashInstr(0))
+		gen.AddInstruction(ExplodeInstr(0))
+	}
+	gen.AddInstruction(VectorizeInstr(0))
+	return nil
+}
+
+func (gen *Generator) generateSyntaxQuoteHash(arg Sexp) error {
+
+	var hash SexpHash
+	switch a := arg.(type) {
+	case SexpHash:
+		//good, required here
+		hash = a
+	default:
+		return fmt.Errorf("arg to generateSyntaxQuoteHash() must be a hash; got %T", a)
+	}
+	n := HashCountKeys(hash)
+	gen.AddInstruction(PushInstr{SexpMarker})
+	for i := 0; i < n; i++ {
+		// must reverse order here to preserve order on rebuild
+		key := (*hash.KeyOrder)[(n-i)-1]
+		val, err := hash.HashGet(key)
+		if err != nil {
+			return err
+		}
+		// value first, since value comes second on rebuild
+		gen.AddInstruction(PushInstr{SexpMarker})
+		gen.GenerateSyntaxQuote([]Sexp{val})
+		gen.AddInstruction(SquashInstr(0))
+		gen.AddInstruction(ExplodeInstr(0))
+
+		gen.AddInstruction(PushInstr{SexpMarker})
+		gen.GenerateSyntaxQuote([]Sexp{key})
+		gen.AddInstruction(SquashInstr(0))
+		gen.AddInstruction(ExplodeInstr(0))
+	}
+	gen.AddInstruction(HashizeInstr{
+		HashLen:  n,
+		TypeName: *(hash.TypeName),
+	})
+	return nil
 }
