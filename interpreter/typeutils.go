@@ -19,6 +19,23 @@ func IsList(expr Sexp) bool {
 	return false
 }
 
+func IsPair(expr Sexp) bool {
+	switch list := expr.(type) {
+	case SexpPair:
+		if list.tail == SexpNull {
+			return false
+		}
+
+		switch ltail := list.tail.(type) {
+		case SexpPair:
+			return IsPair(ltail)
+		}
+
+		return true
+	}
+	return false
+}
+
 func IsFloat(expr Sexp) bool {
 	switch expr.(type) {
 	case SexpFloat:
