@@ -397,6 +397,8 @@ func TypeQueryFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
 	switch name {
 	case "list?":
 		result = IsList(args[0])
+	case "pair?":
+		result = IsPair(args[0])
 	case "null?":
 		result = (args[0] == SexpNull)
 	case "array?":
@@ -505,8 +507,10 @@ func MapFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
 		return MapArray(env, fun, e)
 	case SexpPair:
 		return MapList(env, fun, e)
+	case SexpHash:
+		return MapHash(env, fun, e)
 	}
-	return SexpNull, errors.New("second argument must be array")
+	return SexpNull, errors.New("second argument must be array, list or hash")
 }
 
 func MakeArrayFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
@@ -672,6 +676,7 @@ var BuiltinFunctions = map[string]GlispUserFunction{
 	"string?":    TypeQueryFunction,
 	"zero?":      TypeQueryFunction,
 	"empty?":     TypeQueryFunction,
+	"pair?":      TypeQueryFunction,
 	"println":    PrintFunction,
 	"print":      PrintFunction,
 	"not":        NotFunction,
