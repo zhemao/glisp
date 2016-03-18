@@ -513,8 +513,7 @@ func FoldLFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
 		return FoldlHash(env, fun, e, acc)
 	}
 
-	return SexpNull, errors.New("second argument must be array, list or hash")
-
+	return SexpNull, fmt.Errorf("second argument must be array, list or hash, had type `%T` val %v", args[1], args[1])
 }
 
 func MapFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
@@ -527,7 +526,7 @@ func MapFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
 	case SexpFunction:
 		fun = e
 	default:
-		return SexpNull, errors.New(fmt.Sprint("first argument must be function had", fmt.Sprintf("%T", e), "  ", e))
+		return SexpNull, fmt.Errorf("first argument must be function had type `%T` val %v", e, e)
 	}
 
 	switch e := args[1].(type) {
@@ -538,7 +537,7 @@ func MapFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
 	case SexpHash:
 		return MapHash(env, fun, e)
 	}
-	return SexpNull, errors.New("second argument must be array, list or hash")
+	return SexpNull, fmt.Errorf("second argument must be array, list or hash, had type `%T` val %v", args[1], args[1])
 }
 
 func MakeArrayFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
