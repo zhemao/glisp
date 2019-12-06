@@ -174,6 +174,7 @@ func main() {
 	glispext.ImportChannels(env)
 	glispext.ImportCoroutines(env)
 	glispext.ImportRegex(env)
+	glispext.ImportFileSys(env)
 
 	flag.Parse()
 	if *cpuprofile != "" {

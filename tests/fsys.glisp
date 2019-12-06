@@ -1,0 +1,41 @@
+
+
+(println (fs-cwd))
+
+
+
+(defn cd [path]
+	(let [ ok (fs-chdir path) ]
+		(cond
+			(string? ok) (begin (print "Err: ") (println ok) (quit))
+			ok)))
+
+(defn print-all [& args]
+	(cond
+		(empty? args) ()
+		(begin (print (car args)) (print-all (cdr args)))))
+
+
+
+
+(def curF (fs-cwd))
+
+(cd "C:\\")
+(print-all "I'm at " (fs-cwd) "\n")
+(print-all "Changing back to " curF "\n")
+
+(cd curF)
+
+(fs-walk (fn [info]
+	(print "Saw ")
+	(print-all "Name - " (hget info "name") "\n")
+	(print-all "First path part - " (fs-path-split (hget info "path")) "\n")
+	(print-all "Re-join - " (fs-path-join (fs-path-split (hget info "path"))) "\n")
+	)
+)
+
+(map (fn [x]
+	(print-all x "\n")
+	)
+	(fs-readdir "")
+)

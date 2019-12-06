@@ -22,7 +22,7 @@ func FoldlArray(env *Glisp, fun SexpFunction, arr SexpArray, acc Sexp) (Sexp, er
 	var err error
 
 	for i := range arr {
-		acc, err = env.Apply(fun, []Sexp{arr[i : i+1], acc})
+		acc, err = env.Apply(fun, []Sexp{arr[i], acc})
 		if err != nil {
 			return acc, err
 		}

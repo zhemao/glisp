@@ -495,7 +495,7 @@ func FoldLFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
 	}
 	var fun SexpFunction
 
-	switch e := args[0].(type) {
+	switch e := args[1].(type) {
 	case SexpFunction:
 		fun = e
 	default:
@@ -504,7 +504,7 @@ func FoldLFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
 
 	acc := args[2]
 
-	switch e := args[1].(type) {
+	switch e := args[0].(type) {
 	case SexpArray:
 		return FoldlArray(env, fun, e, acc)
 	case SexpPair:
