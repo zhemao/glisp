@@ -397,6 +397,8 @@ func TypeQueryFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
 	switch name {
 	case "list?":
 		result = IsList(args[0])
+	case "pair?":
+		result = IsPair(args[0])
 	case "null?":
 		result = (args[0] == SexpNull)
 	case "array?":
@@ -487,6 +489,33 @@ func ApplyFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
 	return env.Apply(fun, funargs)
 }
 
+func FoldLFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
+	if len(args) != 3 {
+		return SexpNull, WrongNargs
+	}
+	var fun SexpFunction
+
+	switch e := args[0].(type) {
+	case SexpFunction:
+		fun = e
+	default:
+		return SexpNull, fmt.Errorf("first argument must be function had type `%T` val %v", e, e)
+	}
+
+	acc := args[2]
+
+	switch e := args[1].(type) {
+	case SexpArray:
+		return FoldlArray(env, fun, e, acc)
+	case SexpPair:
+		return FoldlPair(env, fun, e, acc)
+	case SexpHash:
+		return FoldlHash(env, fun, e, acc)
+	}
+
+	return SexpNull, fmt.Errorf("second argument must be array, list or hash, had type `%T` val %v", args[1], args[1])
+}
+
 func MapFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
 	if len(args) != 2 {
 		return SexpNull, WrongNargs
@@ -497,7 +526,7 @@ func MapFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
 	case SexpFunction:
 		fun = e
 	default:
-		return SexpNull, errors.New(fmt.Sprint("first argument must be function had", fmt.Sprintf("%T", e), "  ", e))
+		return SexpNull, fmt.Errorf("first argument must be function had type `%T` val %v", e, e)
 	}
 
 	switch e := args[1].(type) {
@@ -505,8 +534,10 @@ func MapFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
 		return MapArray(env, fun, e)
 	case SexpPair:
 		return MapList(env, fun, e)
+	case SexpHash:
+		return MapHash(env, fun, e)
 	}
-	return SexpNull, errors.New("second argument must be array")
+	return SexpNull, fmt.Errorf("second argument must be array, list or hash, had type `%T` val %v", args[1], args[1])
 }
 
 func MakeArrayFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
@@ -672,11 +703,13 @@ var BuiltinFunctions = map[string]GlispUserFunction{
 	"string?":    TypeQueryFunction,
 	"zero?":      TypeQueryFunction,
 	"empty?":     TypeQueryFunction,
+	"pair?":      TypeQueryFunction,
 	"println":    PrintFunction,
 	"print":      PrintFunction,
 	"not":        NotFunction,
 	"apply":      ApplyFunction,
 	"map":        MapFunction,
+	"foldl":      FoldLFunction,
 	"make-array": MakeArrayFunction,
 	"aget":       ArrayAccessFunction,
 	"aset!":      ArrayAccessFunction,
