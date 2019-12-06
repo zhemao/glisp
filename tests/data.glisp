@@ -1,0 +1,24 @@
+
+(defn print-all [& args]
+	(cond
+		(empty? args) ()
+		(begin (print (car args)) (print-all (cdr args)))))
+
+(def test-data (make-data "hello"))
+
+(print-all test-data "\n")
+
+(def h-data (make-data "h"))
+
+(foldl test-data (fn [part acc]
+			(cond
+				(= part h-data)
+					(print-all "Saw H-data " part " " (cvert-str part) "\n")
+					(print-all "Just Data " part "\n")))
+		[] 1)
+
+(print-all (cvert-str test-data) "\n")
+(print-all (cvert-int32 test-data) "\n")
+(print-all (cvert-float32 test-data) "\n")
+(print-all (cvert-int64 "123456") "\n")
+(print-all (cvert-str print-all) "\n")

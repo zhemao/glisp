@@ -1,5 +1,10 @@
 package glisp
 
+func IsData(expr Sexp) bool {
+	_, ok := expr.(SexpData)
+	return ok
+}
+
 func IsArray(expr Sexp) bool {
 	switch expr.(type) {
 	case SexpArray:

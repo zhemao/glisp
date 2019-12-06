@@ -154,6 +154,15 @@ func compareBool(a SexpBool, b Sexp) (int, error) {
 	return 0, nil
 }
 
+func compareData(aData SexpData, b Sexp) (int, error) {
+	bData, ok := b.(SexpData)
+	if !ok {
+		return 0, fmt.Errorf("can only compare 'Data' to 'Data', given %T and %T", aData, b)
+	}
+
+	return bytes.Compare([]byte(aData), []byte(bData)), nil
+}
+
 func Compare(a Sexp, b Sexp) (int, error) {
 	switch at := a.(type) {
 	case SexpInt:
@@ -172,6 +181,8 @@ func Compare(a Sexp, b Sexp) (int, error) {
 		return comparePair(at, b)
 	case SexpArray:
 		return compareArray(at, b)
+	case SexpData:
+		return compareData(at, b)
 	case SexpSentinel:
 		if at == SexpNull && b == SexpNull {
 			return 0, nil
