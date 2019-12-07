@@ -7,6 +7,7 @@ import (
 	"errors"
 	"path/filepath"
 	"io/ioutil"
+	"io"
 )
 
 func currentDir(env *glisp.Glisp, name string, args []glisp.Sexp) (glisp.Sexp, error) {
@@ -196,6 +197,300 @@ func pathJoin(env *glisp.Glisp, name string, args []glisp.Sexp) (glisp.Sexp, err
 	return glisp.SexpStr(combine), nil
 }
 
+func readFile(env *glisp.Glisp, name string, args []glisp.Sexp) (glisp.Sexp, error) {
+	if len(args) < 1 {
+		return glisp.SexpNull, glisp.WrongNargs
+	}
+
+	fileName, ok := args[0].(glisp.SexpStr)
+	if !ok {
+		return glisp.SexpNull, fmt.Errorf("expected `string` got %T; for arg 0 (filename)", args[0])
+	}
+
+	var offset int64
+	if len(args) > 1 {
+		o, ok := args[1].(glisp.SexpInt)
+		if !ok {
+			return glisp.SexpNull, fmt.Errorf("expected `int` got %T; for arg 1 (offset)", args[1])
+		}
+		offset = int64(o)
+	}
+
+	var max int64
+	if len(args) > 2 {
+		m, ok := args[2].(glisp.SexpInt)
+		if !ok {
+			return glisp.SexpNull, fmt.Errorf("expected `int` got %T; for arg 2 (max)", args[2])
+		}
+		max = int64(m)
+	}
+
+	var err error
+	
+	stat, err := os.Stat(string(fileName))
+	if err != nil {
+		return glisp.SexpNull, err
+	}
+
+	if stat.Size() < offset + max || max == 0 {
+		max = stat.Size() - offset
+	}
+
+	f, err := os.Open(string(fileName))	
+	if err != nil {
+		return glisp.SexpNull, err
+	}
+
+	defer func () {
+		f.Close()
+	}()
+
+	_, err = f.Seek(offset, 0)
+	if err != nil {
+		return glisp.SexpNull, err
+	}
+
+	buf := make([]byte, max)
+	n, err := f.Read(buf)
+	if err != nil {
+		return glisp.SexpNull, err
+	}
+
+	return glisp.SexpData(buf[0:n]), nil
+}
+
+// (fs-read-file-s <filename> <fn [pos data]> <chunkSz> [offset] [max])
+func readStreamFile(env *glisp.Glisp, name string, args []glisp.Sexp) (glisp.Sexp, error) {
+	if len(args) < 3 {
+		return glisp.SexpNull, glisp.WrongNargs
+	}
+
+	fileName, ok := args[0].(glisp.SexpStr)
+	if !ok {
+		return glisp.SexpNull, fmt.Errorf("expected `string` got %T; for arg 0 (filename)", args[0])
+	}
+
+	fun, ok := args[1].(glisp.SexpFunction)
+	if !ok {
+		return glisp.SexpNull, fmt.Errorf("expected `function` got %T; for arg 1 (stream-fn)", args[1])
+	}
+
+	chunk, ok := args[2].(glisp.SexpInt)
+	if !ok {
+		return glisp.SexpNull, fmt.Errorf("expected `int` got %T; for arg 2 (chunk-size)", args[2])
+	}
+
+	var offset int64
+	if len(args) > 3 {
+		o, ok := args[3].(glisp.SexpInt)
+		if !ok {
+			return glisp.SexpNull, fmt.Errorf("expected `int` got %T; for arg 3 (offset)", args[3])
+		}
+		offset = int64(o)
+	}
+
+	var max int64
+	if len(args) > 4 {
+		m, ok := args[4].(glisp.SexpInt)
+		if !ok {
+			return glisp.SexpNull, fmt.Errorf("expected `int` got %T; for arg 4 (max)", args[4])
+		}
+		max = int64(m)
+	}
+
+	var err error
+	
+	stat, err := os.Stat(string(fileName))
+	if err != nil {
+		return glisp.SexpNull, err
+	}
+
+	if stat.Size() < offset + max || max == 0 {
+		max = stat.Size() - offset
+	}
+
+	f, err := os.Open(string(fileName))	
+	if err != nil {
+		return glisp.SexpNull, err
+	}
+
+	defer func () {
+		f.Close()
+	}()
+
+	pos, err := f.Seek(offset, 0)
+	if err != nil {
+		return glisp.SexpNull, err
+	}
+
+	buf := make([]byte, chunk)
+
+	for pos < max {
+		n, err := f.Read(buf)
+
+		if err != nil && err != io.EOF {
+			return glisp.SexpNull, err
+		}
+
+		if n > 0 {
+			fnRet, err1 := env.Apply(fun, []glisp.Sexp{glisp.SexpInt(pos), glisp.SexpData(buf[0:n])})
+			if err1 != nil {
+				return nil, err1
+			}
+
+			if abort, ok := fnRet.(glisp.SexpBool); ok && bool(abort) {
+				break
+			}
+		}
+
+
+		if err == io.EOF {
+			break
+		}
+
+		pos += int64(n)
+	}
+
+
+	return glisp.SexpInt(int(pos - offset)), nil
+}
+
+// (fs-append-file-s <filename> <fn [pos] => (data)>)
+func appendStreamFile(env *glisp.Glisp, name string, args []glisp.Sexp) (glisp.Sexp, error) {
+	if len(args) < 2 {
+		return glisp.SexpNull, glisp.WrongNargs
+	}
+
+	fileName, ok := args[0].(glisp.SexpStr)
+	if !ok {
+		return glisp.SexpNull, fmt.Errorf("expected `string` got %T; for arg 0 (filename)", args[0])
+	}
+
+	fun, ok := args[1].(glisp.SexpFunction)
+	if !ok {
+		return glisp.SexpNull, fmt.Errorf("expected `function` got %T; for arg 1 (stream-fn)", args[1])
+	}
+
+	f, err := os.OpenFile(string(fileName), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)	
+	if err != nil {
+		return glisp.SexpNull, err
+	}
+
+	defer func () {
+		f.Close()
+	}()
+
+	pos, err := f.Seek(0, 2)
+	if err != nil {
+		return glisp.SexpNull, err
+	}
+
+	for {
+		fnRet, err := env.Apply(fun, []glisp.Sexp{glisp.SexpInt(pos)})
+		if err != nil {
+			return nil, err
+		}
+
+
+		data, ok := fnRet.(glisp.SexpData)
+		if !ok {
+			return nil, fmt.Errorf("stream funciton return something other then `data` aborting")
+		}
+
+		if len([]byte(data)) == 0 {
+			break
+		}
+
+		n, err := f.Write(data)
+		if n < len(data) {
+			return nil, fmt.Errorf("trying to write data(len %v) failed only wrote %v, aborting", len(data), n)
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		pos += int64(n)
+	}
+
+	return glisp.SexpInt(pos), nil
+}
+
+func removeFile(env *glisp.Glisp, name string, args []glisp.Sexp) (glisp.Sexp, error) {
+	for i, arg := range args {
+		file, ok := arg.(glisp.SexpStr)
+		if !ok {
+			return glisp.SexpNull, fmt.Errorf("invalid arg(%v) %T passed, expected string", i, arg)
+		}
+
+		err := os.Remove(string(file))
+		if err != nil {
+			return glisp.SexpNull, fmt.Errorf("arg(%v); error removing file %v; err %v", i, arg, err)
+		}
+	}
+	return glisp.SexpNull, nil
+}
+
+func fileExists(env *glisp.Glisp, name string, args []glisp.Sexp) (glisp.Sexp, error) {
+	for i, arg := range args {
+		file, ok := arg.(glisp.SexpStr)
+		if !ok {
+			return glisp.SexpNull, fmt.Errorf("invalid arg(%v) %T passed, expected string", i, arg)
+		}
+
+		stat, err := os.Stat(string(file))
+		if os.IsNotExist(err) {
+			return glisp.SexpBool(false), nil
+		}
+
+		if err != nil {
+			return glisp.SexpNull, fmt.Errorf("arg(%v); testing exists file %v; err %v", i, arg, err)
+		}
+
+		if stat == nil {
+			return glisp.SexpBool(false), nil
+		}
+	}
+	return glisp.SexpBool(true), nil
+}
+
+func fileInfo(env *glisp.Glisp, name string, args []glisp.Sexp) (glisp.Sexp, error) {
+	for i, arg := range args {
+		file, ok := arg.(glisp.SexpStr)
+		if !ok {
+			return glisp.SexpNull, fmt.Errorf("invalid arg(%v) %T passed, expected string", i, arg)
+		}
+
+		info, err := os.Stat(string(file))
+
+		ginfo, _ := glisp.MakeHash(nil, "FileInfo")
+
+		if os.IsNotExist(err) {
+			ginfo.HashSet(glisp.SexpStr("exists"), glisp.SexpBool(false))
+			ginfo.HashSet(glisp.SexpStr("path"), glisp.SexpStr(""))
+			ginfo.HashSet(glisp.SexpStr("name"), glisp.SexpStr(""))
+			ginfo.HashSet(glisp.SexpStr("size"), glisp.SexpInt(0))
+			ginfo.HashSet(glisp.SexpStr("mode"), glisp.SexpInt(0))
+			ginfo.HashSet(glisp.SexpStr("isdir"), glisp.SexpBool(false))
+			return ginfo, nil
+		}
+
+		
+		if err != nil {
+			return glisp.SexpNull, fmt.Errorf("arg(%v); testing exists file %v; err %v", i, arg, err)
+		}
+
+		ginfo.HashSet(glisp.SexpStr("exists"), glisp.SexpBool(true))
+		ginfo.HashSet(glisp.SexpStr("path"), glisp.SexpStr(file))
+		ginfo.HashSet(glisp.SexpStr("name"), glisp.SexpStr(info.Name()))
+		ginfo.HashSet(glisp.SexpStr("size"), glisp.SexpInt(info.Size()))
+		ginfo.HashSet(glisp.SexpStr("mode"), glisp.SexpInt(info.Mode()))
+		ginfo.HashSet(glisp.SexpStr("isdir"), glisp.SexpBool(info.IsDir()))
+
+		return ginfo, nil
+	}
+	return glisp.SexpNull, nil
+}
+
 func ImportFileSys(env *glisp.Glisp) {
 	env.AddFunction("fs-cwd", currentDir)
 	env.AddFunction("fs-chdir", changeDir)
@@ -203,4 +498,10 @@ func ImportFileSys(env *glisp.Glisp) {
 	env.AddFunction("fs-readdir", readDir)
 	env.AddFunction("fs-path-split", pathSplit)
 	env.AddFunction("fs-path-join", pathJoin)
+	env.AddFunction("fs-file-exists", fileExists)
+	env.AddFunction("fs-file-info", fileInfo)
+	env.AddFunction("fs-read-file", readFile)
+	env.AddFunction("fs-read-file-s", readStreamFile)
+	env.AddFunction("fs-remove-file", removeFile)
+	env.AddFunction("fs-append-file-s", appendStreamFile)
 }

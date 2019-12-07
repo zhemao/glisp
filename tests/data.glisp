@@ -15,10 +15,84 @@
 				(= part h-data)
 					(print-all "Saw H-data " part " " (cvert-str part) "\n")
 					(print-all "Just Data " part "\n")))
-		[] 1)
+		[] 3)
 
 (print-all (cvert-str test-data) "\n")
 (print-all (cvert-int32 test-data) "\n")
 (print-all (cvert-float32 test-data) "\n")
 (print-all (cvert-int64 "123456") "\n")
 (print-all (cvert-str print-all) "\n")
+
+(print-all
+	(cvert-str
+		(fs-read-file "./tests/data.glisp" 20 20)
+	)
+	"\n"
+)
+
+;(print-all "------------------ \n")
+;(print-all
+;	(fs-read-file-s "./tests/data.glisp"
+;		(fn [pos data]
+;			(print-all (cvert-str data)))
+;		10) "\n")
+
+
+(def test-filenames [ "./tests/notthere" "./tests/data.glisp" ])
+
+(map (fn [item]
+	(cond
+		(fs-file-exists item)
+			(print-all "Exists - " item "\n")
+		(print-all "Doesn't Exist - " item "\n")
+	)) test-filenames)
+
+
+(def times [ 0 ])
+
+(cond (fs-file-exists "./tests/test.out")
+	(fs-remove-file "./tests/test.out")
+	()
+)
+
+(print-all (aget times 0) " - times slot 0 \n")
+
+(defn fs-append-file [fname data]
+	(let [t [0]]
+		(fs-append-file-s fname
+			(fn [pos]
+				(cond (= (aget t 0) 0)
+				(begin	
+					(aset! t 0 (+ (aget t 0) 1))
+					(make-data data))
+				(make-data ""))))))
+
+(print-all (fs-append-file-s "./tests/test.out"
+	 (fn [pos]
+		(cond (= (aget times 0) 0)
+			(begin
+				(aset! times 0 (+ (aget times 0) 1))
+				(make-data "Hello\n")
+			)
+		(make-data "")
+		)
+	)) "\n")
+
+(print-all (aget times 0) " - times slot 0 \n")
+
+(defn file-size [file]
+	(hget (fs-file-info file) "size"))
+
+(cond (> (file-size "./tests/hello.out") 60)
+	(fs-remove-file "./tests/hello.out")
+	()
+)
+
+(print-all "Appending tests/hello.out: "
+	(fs-append-file "./tests/hello.out" "Write this!\n") "\n")
+
+
+(defn fs-print-file [file]
+	(fs-read-file-s file (fn [pos data] (print-all (cvert-str data))) 1024))
+
+(fs-print-file "./tests/hello.out")
