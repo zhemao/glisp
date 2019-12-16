@@ -333,7 +333,7 @@ func LenFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
 }
 
 func AppendFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
-	if len(args) != 2 {
+	if len(args) < 2 {
 		return SexpNull, WrongNargs
 	}
 
@@ -358,7 +358,7 @@ func AppendFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
 }
 
 func ConcatFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
-	if len(args) != 2 {
+	if len(args) < 2 {
 		return SexpNull, WrongNargs
 	}
 
@@ -397,7 +397,7 @@ func ConcatFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
 	}
 
 
-	return SexpNull, errors.New("expected strings or arrays or data")
+	return SexpNull, fmt.Errorf("expected string|data|array|pair got %T", args[0])
 }
 
 func ReadFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
@@ -471,24 +471,27 @@ func TypeQueryFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
 }
 
 func PrintFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
-	if len(args) != 1 {
+	if len(args) < 1 {
 		return SexpNull, WrongNargs
 	}
 
 	var str string
 
-	switch expr := args[0].(type) {
-	case SexpStr:
-		str = string(expr)
-	default:
-		str = expr.SexpString()
-	}
 
-	switch name {
-	case "println":
-		fmt.Println(str)
-	case "print":
-		fmt.Print(str)
+	for _, arg := range args {
+	switch expr := arg.(type) {
+		case SexpStr:
+			str = string(expr)
+		default:
+			str = expr.SexpString()
+		}
+
+		switch name {
+		case "println":
+			fmt.Println(str)
+		case "print":
+			fmt.Print(str)
+		}
 	}
 
 	return SexpNull, nil
