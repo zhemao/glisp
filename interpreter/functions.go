@@ -337,11 +337,19 @@ func AppendFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
 		return SexpNull, WrongNargs
 	}
 
+	var err error
+
 	switch t := args[0].(type) {
 	case SexpArray:
-		return SexpArray(append(t, args[1])), nil
+		return SexpArray(append(t, args[1:]...)), nil
 	case SexpStr:
-		return AppendStr(t, args[1])
+		for _, arg := range args {
+			t, err = AppendStr(t, arg)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return t, nil
 	case SexpData:
 		return MakeDataFunction(env, name, args)
 	}
@@ -354,16 +362,40 @@ func ConcatFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
 		return SexpNull, WrongNargs
 	}
 
+
+	var err error
+
 	switch t := args[0].(type) {
 	case SexpArray:
-		return ConcatArray(t, args[1])
+		for _, arg := range args[1:] {
+			t, err = ConcatArray(t, arg)
+			if err != nil {
+				return nil, err
+			}
+		}	
+		return t, nil
 	case SexpStr:
-		return ConcatStr(t, args[1])
+		for _, arg := range args[1:] {
+			t, err = ConcatStr(t, arg)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return t, nil
 	case SexpPair:
-		return ConcatList(t, args[1])
+		var ot Sexp
+		for _, arg := range args[1:] {
+			ot, err = ConcatList(t, arg)
+			if err != nil {
+				return nil, err
+			}
+			t = ot.(SexpPair)
+		}
+		return t, nil
 	case SexpData:
 		return MakeDataFunction(env, name, args)
 	}
+
 
 	return SexpNull, errors.New("expected strings or arrays or data")
 }

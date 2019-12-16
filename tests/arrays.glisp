@@ -18,3 +18,4 @@
 (assert (array? [1 2 3]))
 (assert (empty? []))
 (assert (not (empty? [1])))
+(print "OK passed\n")

@@ -415,6 +415,51 @@ func appendStreamFile(env *glisp.Glisp, name string, args []glisp.Sexp) (glisp.S
 	return glisp.SexpInt(pos), nil
 }
 
+// (fs-append-file <filename> <data> [<data>...])
+func appendFile(env *glisp.Glisp, name string, args []glisp.Sexp) (glisp.Sexp, error) {
+	if len(args) < 2 {
+		return glisp.SexpNull, glisp.WrongNargs
+	}
+
+	fileName, ok := args[0].(glisp.SexpStr)
+	if !ok {
+		return glisp.SexpNull, fmt.Errorf("expected `string` got %T; for arg 0 (filename)", args[0])
+	}
+
+	f, err := os.OpenFile(string(fileName), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)	
+	if err != nil {
+		return glisp.SexpNull, err
+	}
+
+	defer func () {
+		f.Close()
+	}()
+
+	pos, err := f.Seek(0, 2)
+	if err != nil {
+		return glisp.SexpNull, err
+	}
+
+	for i, arg := range args[1:] {
+		data, ok := arg.(glisp.SexpData)
+		if !ok {
+			return glisp.SexpNull, fmt.Errorf("expected `data` got %T; for arg %v (data)", data, i+1)
+		}
+
+		n, err := f.Write(data)
+		if n < len(data) {
+			return nil, fmt.Errorf("trying to write data(len %v) failed only wrote %v, aborting @pos %v", len(data), n, pos)
+		}
+		if err != nil {
+			return nil, err
+		}
+		pos += int64(n)
+	}
+
+
+	return glisp.SexpInt(pos), nil
+}
+
 func removeFile(env *glisp.Glisp, name string, args []glisp.Sexp) (glisp.Sexp, error) {
 	for i, arg := range args {
 		file, ok := arg.(glisp.SexpStr)
@@ -504,4 +549,5 @@ func ImportFileSys(env *glisp.Glisp) {
 	env.AddFunction("fs-read-file-s", readStreamFile)
 	env.AddFunction("fs-remove-file", removeFile)
 	env.AddFunction("fs-append-file-s", appendStreamFile)
+	env.AddFunction("fs-append-file", appendFile)
 }
