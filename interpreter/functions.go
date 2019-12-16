@@ -494,6 +494,8 @@ func ApplyFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
 		if err != nil {
 			return SexpNull, err
 		}
+	case SexpSentinel:
+		funargs = []Sexp{}
 	default:
 		return SexpNull, errors.New("second argument must be array or list")
 	}

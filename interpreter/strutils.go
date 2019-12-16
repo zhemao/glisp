@@ -9,6 +9,8 @@ func ConcatStr(str SexpStr, expr Sexp) (SexpStr, error) {
 	switch t := expr.(type) {
 	case SexpStr:
 		str2 = t
+	case SexpSentinel:
+		str2 = ""
 	default:
 		return SexpStr(""), errors.New("second argument is not a string")
 	}

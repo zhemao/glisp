@@ -113,8 +113,8 @@ func (hash *SexpHash) HashGet(key Sexp) (Sexp, error) {
 	}
 
 	if val == SexpEnd {
-		msg := fmt.Sprintf("key %s not found", key.SexpString())
-		return SexpNull, errors.New(msg)
+		// msg := fmt.Sprintf("key %s not found", key.SexpString())
+		return SexpNull, nil // errors.New(msg)
 	}
 	return val, nil
 }
