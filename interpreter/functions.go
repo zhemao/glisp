@@ -337,13 +337,28 @@ func AppendFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
 		return SexpNull, WrongNargs
 	}
 
+	coalesce := name[0] == '?'
+
 	var err error
 
 	switch t := args[0].(type) {
 	case SexpArray:
-		return SexpArray(append(t, args[1:]...)), nil
+		if coalesce {
+			for _, arg := range args {
+				if IsEmpty(arg) {
+					continue
+				}
+				t = append(t, arg)
+			}
+			return SexpArray(t), nil
+		} else {
+			return SexpArray(append(t, args[1:]...)), nil
+		}
 	case SexpStr:
 		for _, arg := range args {
+			if coalesce && IsEmpty(arg) {
+				continue
+			}
 			t, err = AppendStr(t, arg)
 			if err != nil {
 				return nil, err
@@ -362,12 +377,17 @@ func ConcatFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
 		return SexpNull, WrongNargs
 	}
 
+	coalesce := name[0] == '?'
+
 
 	var err error
 
 	switch t := args[0].(type) {
 	case SexpArray:
 		for _, arg := range args[1:] {
+			if coalesce && IsEmpty(arg) {
+				continue
+			}
 			t, err = ConcatArray(t, arg)
 			if err != nil {
 				return nil, err
@@ -376,6 +396,9 @@ func ConcatFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
 		return t, nil
 	case SexpStr:
 		for _, arg := range args[1:] {
+			if coalesce && IsEmpty(arg) {
+				continue
+			}
 			t, err = ConcatStr(t, arg)
 			if err != nil {
 				return nil, err
@@ -385,6 +408,9 @@ func ConcatFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
 	case SexpPair:
 		var ot Sexp
 		for _, arg := range args[1:] {
+			if coalesce && IsEmpty(arg) {
+				continue
+			}
 			ot, err = ConcatList(t, arg)
 			if err != nil {
 				return nil, err
@@ -678,7 +704,13 @@ func makeData(i *int, data *bytes.Buffer, thing Sexp) error {
 func MakeDataFunction(env *Glisp, name string, args []Sexp) (Sexp, error) {
 	data := &bytes.Buffer{}
 	i := 0
+
+	coalesce := name[0] == '?'
+
 	for _, v := range args {
+		if coalesce && IsEmpty(v) {
+			continue
+		}
 		if err := makeData(&i, data, v); err != nil {
 			return SexpNull, err
 		}
@@ -868,7 +900,9 @@ var BuiltinFunctions = map[string]GlispUserFunction{
 	"slice":      SliceFunction,
 	"len":        LenFunction,
 	"append":     AppendFunction,
+	"?append":    AppendFunction,
 	"concat":     ConcatFunction,
+	"?concat":    ConcatFunction,
 	"array":      ConstructorFunction,
 	"list":       ConstructorFunction,
 	"hash":       ConstructorFunction,
