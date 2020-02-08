@@ -1,11 +1,11 @@
-(defn foldl [lst fun acc]
+(defn mfoldl [lst fun acc]
     (cond
         (empty? lst) acc
-        (foldl (cdr lst) fun (fun (car lst) acc))
+        (mfoldl (cdr lst) fun (fun (car lst) acc))
 		))
         
 (defn filter [lst fun]
-    (foldl lst
+    (mfoldl lst
             (fn [x l]
                 (cond
                     (fun x) (append l x)
@@ -14,7 +14,7 @@
 )
 
 (defn g-map [fun lst]
-	(foldl lst (fn [x l] (fun x)) []))
+	(mfoldl lst (fn [x l] (fun x)) []))
 
 (defn even? [x]
     (cond

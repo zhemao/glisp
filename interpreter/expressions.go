@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"bytes"
 )
 
 type Sexp interface {
@@ -86,6 +87,7 @@ type SexpBool bool
 type SexpFloat float64
 type SexpChar rune
 type SexpStr string
+type SexpData []byte
 
 var SexpIntSize = reflect.TypeOf(SexpInt(0)).Bits()
 var SexpFloatSize = reflect.TypeOf(SexpFloat(0.0)).Bits()
@@ -138,6 +140,22 @@ func (c SexpChar) SexpString() string {
 
 func (s SexpStr) SexpString() string {
 	return strconv.Quote(string(s))
+}
+
+func (b SexpData) SexpString() string {
+	data := []byte(b)
+
+	str := &bytes.Buffer{}
+	str.WriteString("<")
+	if len(data) > 0 {
+		for _, v := range data[0:len(data)-1] {
+			str.WriteString(strconv.Itoa(int(v)))
+			str.WriteRune(',')
+		}
+		str.WriteString(strconv.Itoa(int(data[len(data)-1])))
+	}
+	str.WriteString(">")
+	return str.String()
 }
 
 type SexpSymbol struct {

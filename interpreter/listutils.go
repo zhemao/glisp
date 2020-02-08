@@ -29,6 +29,29 @@ func MakeList(expressions []Sexp) Sexp {
 	return Cons(expressions[0], MakeList(expressions[1:]))
 }
 
+func FoldlPair(env *Glisp, fun SexpFunction, expr Sexp, acc Sexp) (Sexp, error) {
+	var err error
+
+	cur := expr
+
+	for {
+		switch pair := cur.(type) {
+		case SexpPair:
+			acc, err = env.Apply(fun, []Sexp{pair.head, acc})
+			if err != nil {
+				return acc, err
+			}
+			cur = pair.tail
+		default:
+			if pair == SexpNull {
+				return acc, nil
+			}
+			return env.Apply(fun, []Sexp{cur, acc})
+		}
+
+	}
+}
+
 func MapList(env *Glisp, fun SexpFunction, expr Sexp) (Sexp, error) {
 	if expr == SexpNull {
 		return SexpNull, nil
